@@ -1,0 +1,102 @@
+Códigos procesamiento en tiempo real
+Con el putty iniciado y conectado con el vboxuser de contraseña bigdata
+
+Iniciamos el servidor ZooKeeper:
+sudo /opt/Kafka/bin/zookeeper-server-start.sh /opt/Kafka/config/zookeeper.properties &
+
+Iniciamos el servidor Kafka:
+sudo /opt/Kafka/bin/kafka-server-start.sh /opt/Kafka/config/server.properties &
+
+Creamos un tema (topic) de Kafka, el tema se llamará data_breaches
+/opt/Kafka/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic data_breaches
+
+Implementación del productor(producer) de Kafka
+Creamos un archivo llamado kafka_producer.py
+nano kafka_producer2.py 
+
+Se carga el siguiente código:
+
+import time
+import json
+import random
+from kafka import KafkaProducer
+
+# Función para generar datos simulados de brechas de datos
+def generate_breach_data():
+    return {
+        "id": random.randint(1000, 9999),
+        "company": random.choice(["CompanyA", "CompanyB", "CompanyC"]),
+        "records_stolen": random.randint(1000, 1000000),
+        "date": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+# Configuración del productor de Kafka
+producer = KafkaProducer(
+    bootstrap_servers=['localhost:9092'],
+    value_serializer=lambda x: json.dumps(x).encode('utf-8')
+)
+
+# Enviar datos continuamente
+while True:
+    breach_data = generate_breach_data()
+    producer.send('data_breaches', value=breach_data)
+    print(f"Sent: {breach_data}")
+    time.sleep(1)  # Enviar cada segundo
+
+
+Implementación del consumidor con Spark Streaming
+Ahora, crearemos un consumidor(consumer) utilizando Spark Streaming para procesar los datos en tiempo real. Crea un archivo llamado spark_streaming_consumer.py 
+nano spark_streaming_consumer2.py
+
+Se carga el siguiente código:
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import from_json, col, window
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
+
+# Crea la sesión de Spark
+spark = SparkSession.builder \
+    .appName("KafkaSparkStreaming") \
+    .getOrCreate()
+
+spark.sparkContext.setLogLevel("WARN")
+
+# Define el esquema de los datos
+schema = StructType([
+    StructField("id", IntegerType(), True),
+    StructField("company", StringType(), True),
+    StructField("records_stolen", IntegerType(), True),
+    StructField("date", StringType(), True)
+])
+
+# Lee los datos desde Kafka
+df = spark \
+    .readStream \
+    .format("kafka") \
+    .option("kafka.bootstrap.servers", "localhost:9092") \
+    .option("subscribe", "data_breaches") \
+    .load()
+
+# Parsear JSON
+parsed_df = df.select(from_json(col("value").cast("string"), schema).alias("data")).select("data.*")
+
+# Calcular número total de registros robados por empresa en ventanas de 1 minuto
+stats_df = parsed_df \
+    .groupBy(window(col("date"), "1 minute"), "company") \
+    .agg({"records_stolen": "sum"})
+
+# Muestra los resultados en la consola
+query = stats_df \
+    .writeStream \
+    .outputMode("complete") \
+    .format("console") \
+    .start()
+
+query.awaitTermination()
+
+
+Por ultimo se ejecutan los archivos para visualizar los resultados.
+# Este código se ejecuta en la terminar que venimos trabajando
+python3 kafka_producer2.py 
+# Y este código se ejecuta en una nueva terminar de putty
+spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 spark_streaming_consumer2.py
