@@ -11,7 +11,7 @@ Creamos un tema (topic) de Kafka, el tema se llamará data_breaches
 /opt/Kafka/bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic data_breaches
 
 Implementación del productor(producer) de Kafka
-Creamos un archivo llamado kafka_producer.py
+Creamos un archivo llamado kafka_producer2.py
 nano kafka_producer2.py 
 
 Se carga el siguiente código:
@@ -45,7 +45,7 @@ while True:
 
 
 Implementación del consumidor con Spark Streaming
-Ahora, crearemos un consumidor(consumer) utilizando Spark Streaming para procesar los datos en tiempo real. Crea un archivo llamado spark_streaming_consumer.py 
+Ahora, crearemos un consumidor(consumer) utilizando Spark Streaming para procesar los datos en tiempo real. Crea un archivo llamado spark_streaming_consumer2.py 
 nano spark_streaming_consumer2.py
 
 Se carga el siguiente código:
