@@ -20,7 +20,7 @@ wget https://raw.githubusercontent.com/Beamdeus/tarea-3/refs/heads/main/df_1.csv
 Se copia el dataset descargado en la capeta creada
 hdfs dfs -put /home/hadoop/df_1.csv /Tarea3DataBreaches
 
-Se crea un archivo de python con extensión .py llamado procesamiento_batch.py, donde se coloca el código de operaciones de limpieza, transformación, aplicación de análisis exploratorio de datos (EDA) y guardar los datos procesados.
+Se crea un archivo de python con extensión .py llamado procesamiento_batch.py, donde se coloca el código encargado de operaciones de limpieza, transformación, aplicación de análisis exploratorio de datos (EDA) y guardar los datos procesados.
 nano procesamiento_batch.py
 
 se carga el siguiente código:
