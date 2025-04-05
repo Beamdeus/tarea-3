@@ -1,0 +1,94 @@
+Códigos procesamiento en batch
+Con el putty iniciado y conectado con el vboxuser de contraseña bigdata 
+
+Se inicia el Spark
+pyspark  
+salimos con CTRL + D
+
+Cambiamos al usuario hadoop 
+su - hadoop
+Password: hadoop
+
+Se inicia el clúster y se crea la carpeta Tarea3DataBreaches y la de resultados
+start-all.sh
+hdfs dfs -mkdir /Tarea3DataBreaches
+hdfs dfs -mkdir /resultados
+
+Se descarga el dataset mediante la siguiente url
+wget https://raw.githubusercontent.com/Beamdeus/tarea-3/refs/heads/main/df_1.csv
+
+Se copia el dataset descargado en la capeta creada
+hdfs dfs -put /home/hadoop/df_1.csv /Tarea3DataBreaches
+
+Se crea un archivo de python con extensión .py llamado procesamiento_batch.py, donde se coloca el código de operaciones de limpieza, transformación, aplicación de análisis exploratorio de datos (EDA) y guardar los datos procesados.
+nano procesamiento_batch.py
+
+se carga el siguiente código:
+# Importamos librerías necesarias
+from pyspark.sql import SparkSession, functions as F
+
+# Inicializa la sesión de Spark
+spark = SparkSession.builder.appName('Tarea3DataBreaches').getOrCreate()
+
+# Define la ruta del archivo .csv en HDFS
+file_path = 'hdfs://localhost:9000/Tarea3DataBreaches/df_1.csv'
+
+# Lee el archivo .csv
+df = spark.read.format('csv').option('header', 'true').option('inferSchema', 'true').load(file_path)
+
+# Imprimimos el esquema
+df.printSchema()
+
+# Muestra las primeras filas del DataFrame
+df.show(5)
+
+# Estadísticas básicas del dataset
+df.summary().show()
+
+# Limpieza de datos
+# -------------------------------------------------------------------------------------
+
+# Verificar valores nulos en cada columna
+print("Valores nulos por columna:\n")
+df.select([F.count(F.when(F.col(c).isNull(), c)).alias(c) for c in df.columns]).show()
+
+# Eliminamos filas con valores nulos
+df_clean = df.dropna()
+
+# Eliminamos duplicados
+df_clean = df_clean.dropDuplicates()
+
+# Transformación
+# ------------------------------------------------------------------------------------------------------
+
+# Normalización de nombres de columnas (convertir a minúsculas y reemplazar espacios por guiones bajos)
+for col_name in df_clean.columns:
+    new_col_name = col_name.lower().replace(" ", "_")
+    df_clean = df_clean.withColumnRenamed(col_name, new_col_name)
+
+# Análisis Exploratorio (EDA)
+# ------------------------------------------------------------------------------------------------------
+
+# Consulta: Cuenta el número de incidentes por tipo de brecha de datos
+if "breach_type" in df_clean.columns:
+    print("Número de incidentes por tipo de brecha:\n")
+    df_clean.groupBy("breach_type").count().orderBy(F.col("count").desc()).show()
+
+# Consulta: Contar el número de incidentes por año
+if "year" in df_clean.columns:
+    print("Número de incidentes por año:\n")
+    df_clean.groupBy("year").count().orderBy(F.col("year")).show()
+
+# Almacenamiento de los resultados
+# ------------------------------------------------------------------------------------------------------
+
+# Almacenar datos procesados en HDFS
+output_path = "hdfs://localhost:9000/resultados/processed_data"
+df_clean.write.mode("overwrite").csv(output_path)
+
+# Finaliza la sesión de Spark
+spark.stop()
+
+
+Por ultimo se ejecuta el archivo para visualizar los resultados
+python3 procesamiento_batch.py
